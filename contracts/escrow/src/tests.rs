@@ -578,6 +578,7 @@ fn test_deposit_by_non_player_returns_unauthorized() {
     );
 }
 
+// Issue #195: is_funded returns false after only one player deposits, true after both
 #[test]
 fn test_is_funded_false_after_one_deposit() {
     let (env, contract_id, _oracle, player1, player2, token, _admin) = setup();
