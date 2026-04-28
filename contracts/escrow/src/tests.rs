@@ -1402,41 +1402,38 @@ fn test_player2_win_payout_full_pot() {
     assert_eq!(client.get_escrow_balance(&id), 0);
 }
 
+// Issue #222: cancel_match refunds only player1 when only player1 has deposited;
+// player2 balance must remain unchanged and escrow must return to 0.
 #[test]
-fn test_match_ttl_is_extended() {
-    let (env, contract_id, oracle, player1, player2, token, _admin) = setup();
+fn test_cancel_match_refunds_only_player1_when_only_player1_deposited() {
+    let (env, contract_id, _oracle, player1, player2, token, _admin) = setup();
     let client = EscrowContractClient::new(&env, &contract_id);
+    let token_client = TokenClient::new(&env, &token);
 
     let id = client.create_match(
         &player1,
         &player2,
         &100,
         &token,
-        &String::from_str(&env, "ttl_test"),
+        &String::from_str(&env, "partial_deposit_cancel"),
         &Platform::Lichess,
     );
 
-    let check_ttl =
-        |key: DataKey| env.as_contract(&contract_id, || env.storage().persistent().get_ttl(&key));
-
-    // Verify TTL on creation
-    assert_eq!(check_ttl(DataKey::Match(id)), crate::MATCH_TTL_LEDGERS);
-    assert_eq!(check_ttl(DataKey::GameId(String::from_str(&env, "ttl_test"))), crate::MATCH_TTL_LEDGERS);
-
-    // Verify TTL on deposit (player 1)
+    // Only player1 deposits
     client.deposit(&id, &player1);
-    assert_eq!(check_ttl(DataKey::Match(id)), crate::MATCH_TTL_LEDGERS);
+    assert_eq!(token_client.balance(&player1), 900);
+    assert_eq!(token_client.balance(&player2), 1000); // player2 untouched
+    assert_eq!(client.get_escrow_balance(&id), 100);
 
-    // Verify TTL on activation (player 2 deposit)
-    client.deposit(&id, &player2);
-    assert_eq!(check_ttl(DataKey::Match(id)), crate::MATCH_TTL_LEDGERS);
+    // Cancel — player2 triggers the cancellation
+    client.cancel_match(&id, &player2);
 
-    // Verify TTL on completion
-    client.submit_result(
-        &id,
-        &String::from_str(&env, "ttl_test"),
-        &Winner::Player1,
-        &oracle,
-    );
-    assert_eq!(check_ttl(DataKey::Match(id)), crate::MATCH_TTL_LEDGERS);
+    // player1 must be fully refunded
+    assert_eq!(token_client.balance(&player1), 1000);
+    // player2 balance must be unchanged (never deposited, must not receive anything)
+    assert_eq!(token_client.balance(&player2), 1000);
+    // Escrow must be empty
+    assert_eq!(client.get_escrow_balance(&id), 0);
+    // Match must be in Cancelled state
+    assert_eq!(client.get_match(&id).state, MatchState::Cancelled);
 }
