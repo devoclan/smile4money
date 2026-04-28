@@ -1298,3 +1298,37 @@ fn test_submit_result_on_cancelled_match_fails() {
         Err(Ok(Error::InvalidState))
     );
 }
+
+// Issue #208: Player1 win payout sends full pot (2x stake_amount) to player1; player2 receives nothing
+#[test]
+fn test_player1_win_payout_sends_full_pot_to_player1() {
+    let (env, contract_id, oracle, player1, player2, token, _admin) = setup();
+    let client = EscrowContractClient::new(&env, &contract_id);
+    let token_client = TokenClient::new(&env, &token);
+
+    let stake = 100_i128;
+    let p1_before = token_client.balance(&player1);
+    let p2_before = token_client.balance(&player2);
+
+    let id = client.create_match(
+        &player1,
+        &player2,
+        &stake,
+        &token,
+        &String::from_str(&env, "issue208_game"),
+        &Platform::Lichess,
+    );
+    client.deposit(&id, &player1);
+    client.deposit(&id, &player2);
+    client.submit_result(
+        &id,
+        &String::from_str(&env, "issue208_game"),
+        &Winner::Player1,
+        &oracle,
+    );
+
+    assert_eq!(token_client.balance(&player1), p1_before + stake); // received full pot (2x stake, net +stake)
+    assert_eq!(token_client.balance(&player2), p2_before - stake); // lost their stake
+    assert_eq!(client.get_escrow_balance(&id), 0);
+    assert_eq!(client.get_match(&id).state, MatchState::Completed);
+}
