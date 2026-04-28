@@ -169,7 +169,7 @@ impl EscrowContract {
 
         env.events().publish(
             (Symbol::new(&env, "match"), symbol_short!("created")),
-            (id, m.player1.clone(), m.player2.clone(), stake_amount),
+            (id, m.player1.clone(), m.player2.clone(), stake_amount, m.game_id.clone()),
         );
 
         Ok(id)

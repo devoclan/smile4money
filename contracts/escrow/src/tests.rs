@@ -862,12 +862,13 @@ fn test_create_match_emits_event() {
     let (env, contract_id, _oracle, player1, player2, token, _admin) = setup();
     let client = EscrowContractClient::new(&env, &contract_id);
 
+    let game_id = String::from_str(&env, "game_ev");
     let id = client.create_match(
         &player1,
         &player2,
         &100,
         &token,
-        &String::from_str(&env, "game_ev"),
+        &game_id,
         &Platform::Lichess,
     );
 
@@ -881,9 +882,13 @@ fn test_create_match_emits_event() {
     assert!(matched.is_some());
 
     let (_, _, data) = matched.unwrap();
-    let (ev_id, ev_p1, ev_p2, ev_stake): (u64, Address, Address, i128) =
+    let (ev_id, ev_p1, ev_p2, ev_stake, ev_game_id): (u64, Address, Address, i128, String) =
         TryFromVal::try_from_val(&env, &data).unwrap();
-    assert_eq!((ev_id, ev_p1, ev_p2, ev_stake), (id, player1, player2, 100));
+    assert_eq!(ev_id, id);
+    assert_eq!(ev_p1, player1);
+    assert_eq!(ev_p2, player2);
+    assert_eq!(ev_stake, 100);
+    assert_eq!(ev_game_id, game_id);
 }
 
 #[test]
