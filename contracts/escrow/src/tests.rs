@@ -1298,3 +1298,26 @@ fn test_submit_result_on_cancelled_match_fails() {
         Err(Ok(Error::InvalidState))
     );
 }
+
+// Issue #37: deposit must return TransferFailed when the token transfer fails
+#[test]
+fn test_deposit_transfer_failed_insufficient_balance() {
+    let (env, contract_id, _oracle, player1, player2, token, _admin) = setup();
+    let client = EscrowContractClient::new(&env, &contract_id);
+
+    // Stake amount exceeds player1's balance of 1000
+    let id = client.create_match(
+        &player1, &player2, &5000, &token,
+        &String::from_str(&env, "transfer_fail"), &Platform::Lichess,
+    );
+
+    assert_eq!(
+        client.try_deposit(&id, &player1),
+        Err(Ok(Error::TransferFailed))
+    );
+
+    // State must not have been updated
+    let m = client.get_match(&id);
+    assert!(!m.player1_deposited);
+    assert_eq!(m.state, MatchState::Pending);
+}
