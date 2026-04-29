@@ -221,6 +221,56 @@ fn test_player2_can_cancel_pending_match() {
 }
 
 #[test]
+#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
+fn test_cancel_with_both_deposits_requires_both_auth() {
+    use soroban_sdk::testutils::{MockAuth, MockAuthInvoke};
+
+    let env = Env::default();
+    let admin = Address::generate(&env);
+    let oracle = Address::generate(&env);
+    let player1 = Address::generate(&env);
+    let player2 = Address::generate(&env);
+
+    let token_id = env.register_stellar_asset_contract_v2(admin.clone());
+    let token_addr = token_id.address();
+    let asset_client = StellarAssetClient::new(&env, &token_addr);
+    asset_client.mint(&player1, &1000);
+    asset_client.mint(&player2, &1000);
+
+    let contract_id = env.register(EscrowContract, ());
+    let client = EscrowContractClient::new(&env, &contract_id);
+
+    // Initialize with mock_all_auths for setup
+    env.mock_all_auths();
+    client.initialize(&oracle, &admin, &token_addr);
+
+    let id = client.create_match(
+        &player1,
+        &player2,
+        &100,
+        &token_addr,
+        &String::from_str(&env, "both_deposits"),
+        &Platform::Lichess,
+    );
+    client.deposit(&id, &player1);
+    client.deposit(&id, &player2);
+
+    // Now set auth to only player1 — should panic because player2's auth is also required
+    env.set_auths(&[MockAuth {
+        address: &player1,
+        invoke: &MockAuthInvoke {
+            contract: &contract_id,
+            fn_name: "cancel_match",
+            args: (id, player1.clone()).into_val(&env),
+            sub_invokes: &[],
+        },
+    }
+    .into()]);
+
+    client.cancel_match(&id, &player1);
+}
+
+#[test]
 fn test_cancel_active_match_fails() {
     let (env, contract_id, _oracle, player1, player2, token, _admin) = setup();
     let client = EscrowContractClient::new(&env, &contract_id);
@@ -469,6 +519,36 @@ fn test_submit_result_wrong_game_id_fails() {
         ),
         Err(Ok(Error::GameIdMismatch))
     );
+}
+
+#[test]
+fn test_submit_result_emits_event() {
+    let (env, contract_id, oracle, player1, player2, token, _admin) = setup();
+    let client = EscrowContractClient::new(&env, &contract_id);
+
+    let stake: i128 = 100;
+    let id = client.create_match(
+        &player1,
+        &player2,
+        &stake,
+        &token,
+        &String::from_str(&env, "event_game"),
+        &Platform::Lichess,
+    );
+    client.deposit(&id, &player1);
+    client.deposit(&id, &player2);
+    client.submit_result(&id, &String::from_str(&env, "event_game"), &Winner::Player1, &oracle);
+
+    let events = env.events().all();
+    let last = events.last().unwrap();
+    assert_eq!(last.0, contract_id);
+    assert_eq!(Symbol::try_from_val(&env, &last.1.get(0).unwrap()).unwrap(), Symbol::new(&env, "match"));
+    assert_eq!(Symbol::try_from_val(&env, &last.1.get(1).unwrap()).unwrap(), symbol_short!("completed"));
+    let (ev_id, ev_winner, ev_payout): (u64, Winner, i128) =
+        TryFromVal::try_from_val(&env, &last.2).unwrap();
+    assert_eq!(ev_id, id);
+    assert_eq!(ev_winner, Winner::Player1);
+    assert_eq!(ev_payout, stake * 2);
 }
 
 #[test]
