@@ -1,3 +1,4 @@
+extern crate std;
 use super::*;
 use soroban_sdk::{
     testutils::{storage::Persistent as _, Address as _, Events},
@@ -965,10 +966,14 @@ fn test_deposit_emits_event() {
         &String::from_str(&env, "deposit_ev"),
         &Platform::Lichess,
     );
+    
+    // Test player1 deposit
     client.deposit(&id, &player1);
 
+    client.deposit(&id, &player2);
+    
     let events = env.events().all();
-    let topics = vec![
+    let deposit_topics = vec![
         &env,
         Symbol::new(&env, "match").into_val(&env),
         soroban_sdk::symbol_short!("deposit").into_val(&env),
