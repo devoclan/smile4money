@@ -75,6 +75,7 @@ export function ClaimBurn({
           className={`toggle-btn${mode === 'claim' ? ' active' : ''}`}
           onClick={() => { setMode('claim'); setStatus('idle'); }}
           aria-pressed={mode === 'claim'}
+          disabled={status === 'pending'}
           data-testid="toggle-claim"
         >
           Claim
@@ -83,6 +84,7 @@ export function ClaimBurn({
           className={`toggle-btn${mode === 'burn' ? ' active' : ''}`}
           onClick={() => { setMode('burn'); setStatus('idle'); }}
           aria-pressed={mode === 'burn'}
+          disabled={status === 'pending'}
           data-testid="toggle-burn"
         >
           Burn
@@ -101,6 +103,7 @@ export function ClaimBurn({
           onChange={(e) => { setAmount(e.target.value); setStatus('idle'); }}
           placeholder="0.00"
           disabled={status === 'pending'}
+          aria-label="Amount in XLM"
           data-testid="amount-input"
         />
         <button
