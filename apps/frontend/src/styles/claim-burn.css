@@ -1,5 +1,5 @@
 .claim-burn {
-  max-width: 400px;
+  max-width: 420px;
   margin: 3rem auto;
   padding: 2rem;
   border-radius: 12px;
@@ -15,16 +15,22 @@
   font-size: 0.95rem;
 }
 
+/* Buttons */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.4rem;
   border: none;
   border-radius: 8px;
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s, opacity 0.15s;
+  transition: background 0.15s, opacity 0.15s, transform 0.1s;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .btn:disabled {
@@ -49,6 +55,7 @@
   background: #e2e8f0;
   color: #475569;
   border-radius: 6px;
+  white-space: nowrap;
 }
 
 .btn-disconnect:hover:not(:disabled) {
@@ -77,11 +84,36 @@
   background: #dc2626;
 }
 
+/* Network badge */
+.network-badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.network-badge--testnet {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.network-badge--mainnet {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
 /* Wallet info bar */
 .wallet-info {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   margin-bottom: 1.5rem;
   padding: 0.65rem 1rem;
   background: #f8fafc;
@@ -93,6 +125,12 @@
   font-family: 'SF Mono', 'Fira Code', 'Fira Mono', monospace;
   font-size: 0.85rem;
   color: #1e293b;
+}
+
+.wallet-info-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 /* Toggle */
@@ -140,24 +178,53 @@
   color: #475569;
 }
 
-.claim-burn-form input {
-  padding: 0.65rem 0.85rem;
+.balance-hint {
+  margin-left: 0.5rem;
+  font-weight: 400;
+  color: #94a3b8;
+}
+
+.input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-wrap input {
+  width: 100%;
+  padding: 0.65rem 3.2rem 0.65rem 0.85rem;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   font-size: 1rem;
   color: #1e293b;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.claim-burn-form input:focus {
+.input-wrap input:focus {
   border-color: #6366f1;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
-.claim-burn-form input:disabled {
+.input-wrap input:disabled {
   background: #f1f5f9;
   color: #94a3b8;
+}
+
+.input-suffix {
+  position: absolute;
+  right: 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+/* Field error */
+.field-error {
+  margin: -0.35rem 0 0;
+  font-size: 0.8rem;
+  color: #dc2626;
 }
 
 /* Feedback */
@@ -167,6 +234,7 @@
   border-radius: 8px;
   font-size: 0.85rem;
   font-weight: 500;
+  animation: fadeIn 0.2s ease-out;
 }
 
 .feedback.success {
@@ -181,9 +249,21 @@
   border: 1px solid #fecaca;
 }
 
+.tx-hash {
+  display: block;
+  margin-top: 0.3rem;
+  font-family: 'SF Mono', 'Fira Code', 'Fira Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
 /* Connecting state */
 .wallet-connecting {
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   color: #64748b;
   font-size: 0.95rem;
 }
@@ -197,4 +277,57 @@
   color: #b91c1c;
   margin-bottom: 1rem;
   font-size: 0.9rem;
+}
+
+/* Spinner */
+.spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid #cbd5e1;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+.spinner--small {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-width: 2px;
+}
+
+/* Animations */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .claim-burn {
+    margin: 1.5rem 1rem;
+    padding: 1.5rem;
+  }
+
+  .wallet-info {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .wallet-info-actions {
+    justify-content: center;
+  }
 }

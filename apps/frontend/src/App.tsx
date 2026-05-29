@@ -27,6 +27,7 @@ export function App() {
           address: wallet.address,
           error: wallet.error,
           balance: wallet.balance,
+          network: wallet.network,
         }}
         onConnect={wallet.connect}
         onDisconnect={wallet.disconnect}

@@ -10,6 +10,7 @@ function connectedWallet(overrides?: Partial<WalletState>): WalletState {
     address: 'GA4QZ3R2X3Y6KZ7J8M9N0P1Q2R3S4T5U6V7W8X9Y0Z1',
     error: null,
     balance: null,
+    network: 'testnet',
     ...overrides,
   };
 }
@@ -18,7 +19,7 @@ describe('ClaimBurn — wallet states', () => {
   it('shows connect prompt when disconnected', () => {
     render(
       <ClaimBurn
-        walletState={{ status: 'disconnected', address: null, error: null, balance: null }}
+        walletState={{ status: 'disconnected', address: null, error: null, balance: null, network: 'unknown' }}
       />,
     );
     expect(screen.getByTestId('connect-wallet-btn')).toBeInTheDocument();
@@ -29,7 +30,7 @@ describe('ClaimBurn — wallet states', () => {
     const onConnect = vi.fn();
     render(
       <ClaimBurn
-        walletState={{ status: 'disconnected', address: null, error: null, balance: null }}
+        walletState={{ status: 'disconnected', address: null, error: null, balance: null, network: 'unknown' }}
         onConnect={onConnect}
       />,
     );
@@ -37,13 +38,14 @@ describe('ClaimBurn — wallet states', () => {
     expect(onConnect).toHaveBeenCalledOnce();
   });
 
-  it('shows connecting state', () => {
+  it('shows connecting state with spinner', () => {
     render(
       <ClaimBurn
-        walletState={{ status: 'connecting', address: null, error: null, balance: null }}
+        walletState={{ status: 'connecting', address: null, error: null, balance: null, network: 'unknown' }}
       />,
     );
     expect(screen.getByTestId('connecting-msg')).toBeInTheDocument();
+    expect(screen.getByTestId('spinner')).toBeInTheDocument();
     expect(screen.getByText(/Connecting to Freighter/i)).toBeInTheDocument();
   });
 
@@ -55,6 +57,7 @@ describe('ClaimBurn — wallet states', () => {
           address: null,
           error: 'Freighter not installed',
           balance: null,
+          network: 'unknown',
         }}
       />,
     );
@@ -71,6 +74,7 @@ describe('ClaimBurn — wallet states', () => {
           address: null,
           error: 'Something went wrong',
           balance: null,
+          network: 'unknown',
         }}
         onConnect={onConnect}
       />,
@@ -108,6 +112,42 @@ describe('ClaimBurn — wallet states', () => {
     render(<ClaimBurn walletState={connectedWallet()} onDisconnect={onDisconnect} />);
     fireEvent.click(screen.getByTestId('disconnect-btn'));
     expect(onDisconnect).toHaveBeenCalledOnce();
+  });
+});
+
+describe('ClaimBurn — network', () => {
+  it('shows testnet badge when connected to testnet', () => {
+    render(<ClaimBurn walletState={connectedWallet({ network: 'testnet' })} />);
+    const badge = screen.getByTestId('network-badge');
+    expect(badge).toHaveTextContent('Testnet');
+    expect(badge).toHaveClass('network-badge--testnet');
+  });
+
+  it('shows mainnet badge when connected to mainnet', () => {
+    render(<ClaimBurn walletState={connectedWallet({ network: 'mainnet' })} />);
+    const badge = screen.getByTestId('network-badge');
+    expect(badge).toHaveTextContent('Mainnet');
+    expect(badge).toHaveClass('network-badge--mainnet');
+  });
+
+  it('does not show network badge when network is unknown', () => {
+    render(<ClaimBurn walletState={connectedWallet({ network: 'unknown' })} />);
+    expect(screen.queryByTestId('network-badge')).not.toBeInTheDocument();
+  });
+
+  it('shows network badge in disconnected state when network known', () => {
+    render(
+      <ClaimBurn
+        walletState={{
+          status: 'disconnected',
+          address: null,
+          error: null,
+          balance: null,
+          network: 'testnet',
+        }}
+      />,
+    );
+    expect(screen.getByTestId('network-badge-disconnected')).toHaveTextContent('Testnet');
   });
 });
 
@@ -189,6 +229,24 @@ describe('ClaimBurn — submit', () => {
     expect(screen.getByTestId('submit-btn')).toBeDisabled();
   });
 
+  it('disables submit when amount exceeds 7 decimal places', () => {
+    render(<ClaimBurn walletState={connectedWallet()} />);
+    fireEvent.change(screen.getByTestId('amount-input'), { target: { value: '1.12345678' } });
+    expect(screen.getByTestId('submit-btn')).toBeDisabled();
+  });
+
+  it('shows inline error for too many decimals', () => {
+    render(<ClaimBurn walletState={connectedWallet()} />);
+    fireEvent.change(screen.getByTestId('amount-input'), { target: { value: '1.12345678' } });
+    expect(screen.getByTestId('amount-error')).toHaveTextContent('7 decimal places');
+  });
+
+  it('does not show inline error for valid amount', () => {
+    render(<ClaimBurn walletState={connectedWallet()} />);
+    fireEvent.change(screen.getByTestId('amount-input'), { target: { value: '1.1234567' } });
+    expect(screen.queryByTestId('amount-error')).not.toBeInTheDocument();
+  });
+
   it('disables input and submit during pending', async () => {
     const onClaim = vi.fn().mockImplementation(() => new Promise<void>(() => {}));
     render(<ClaimBurn walletState={connectedWallet()} onClaim={onClaim} />);
@@ -197,6 +255,14 @@ describe('ClaimBurn — submit', () => {
     expect(screen.getByTestId('amount-input')).toBeDisabled();
     expect(screen.getByTestId('submit-btn')).toBeDisabled();
     expect(screen.getByTestId('submit-btn')).toHaveTextContent('Processing…');
+  });
+
+  it('shows spinner during pending', async () => {
+    const onClaim = vi.fn().mockImplementation(() => new Promise<void>(() => {}));
+    render(<ClaimBurn walletState={connectedWallet()} onClaim={onClaim} />);
+    fireEvent.change(screen.getByTestId('amount-input'), { target: { value: '10' } });
+    fireEvent.click(screen.getByTestId('submit-btn'));
+    expect(screen.getByTestId('spinner')).toBeInTheDocument();
   });
 
   it('resets status on amount change after success', () => {
@@ -209,6 +275,31 @@ describe('ClaimBurn — submit', () => {
       expect(screen.getByTestId('success-msg')).toBeInTheDocument();
       fireEvent.change(screen.getByTestId('amount-input'), { target: { value: '20' } });
       expect(screen.queryByTestId('success-msg')).not.toBeInTheDocument();
+    });
+  });
+});
+
+describe('ClaimBurn — transaction hash', () => {
+  it('displays transaction hash when onClaim returns one', async () => {
+    const txHash = 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1';
+    const onClaim = vi.fn().mockResolvedValue(txHash);
+    render(<ClaimBurn walletState={connectedWallet()} onClaim={onClaim} />);
+    fireEvent.change(screen.getByTestId('amount-input'), { target: { value: '10' } });
+    fireEvent.click(screen.getByTestId('submit-btn'));
+    await waitFor(() => {
+      expect(screen.getByTestId('tx-hash')).toBeInTheDocument();
+      expect(screen.getByTestId('tx-hash')).toHaveTextContent('a1b2…f0a1');
+    });
+  });
+
+  it('does not show tx hash when onClaim returns void', async () => {
+    const onClaim = vi.fn().mockResolvedValue(undefined);
+    render(<ClaimBurn walletState={connectedWallet()} onClaim={onClaim} />);
+    fireEvent.change(screen.getByTestId('amount-input'), { target: { value: '10' } });
+    fireEvent.click(screen.getByTestId('submit-btn'));
+    await waitFor(() => {
+      expect(screen.getByTestId('success-msg')).toBeInTheDocument();
+      expect(screen.queryByTestId('tx-hash')).not.toBeInTheDocument();
     });
   });
 });
