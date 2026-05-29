@@ -186,6 +186,23 @@ describe('ClaimBurn — submit', () => {
     expect(onBurn).toHaveBeenCalledWith('5');
     expect(screen.getByText('XLM burned successfully!')).toBeInTheDocument();
   });
+
+  it('shows pending state while the transaction is processing', async () => {
+    let resolvePromise: () => void;
+    const promise = new Promise<void>((resolve) => {
+      resolvePromise = resolve;
+    });
+    const onClaim = vi.fn().mockReturnValue(promise);
+
+    render(<ClaimBurn walletState="connected" onClaim={onClaim} />);
+    fireEvent.change(screen.getByTestId('amount-input'), { target: { value: '7' } });
+    fireEvent.click(screen.getByTestId('submit-btn'));
+
+    expect(screen.getByTestId('submit-btn')).toHaveTextContent('Claiming…');
+    resolvePromise!();
+    await waitFor(() => expect(screen.getByTestId('success-msg')).toBeInTheDocument());
+  });
+
   it('calls onBurn with amount', async () => {
     const onBurn = vi.fn().mockResolvedValue(undefined);
     render(<ClaimBurn walletState="connected" onBurn={onBurn} />);
