@@ -180,6 +180,21 @@ export function ClaimBurn({
     );
   }
 
+  function renderError() {
+    return (
+      <div className="wallet-state" data-testid="wallet-error">
+        <div className="wallet-state-icon">{'\u26A0\uFE0F'}</div>
+        <h3 className="wallet-state-title">Connection Error</h3>
+        <p className="wallet-state-message">
+          {errorMsg || 'An error occurred while connecting to your wallet.'}
+        </p>
+        <button className="btn btn-connect" onClick={onConnect} data-testid="retry-connect-btn">
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
   function renderForm() {
     const isPending = phase === 'pending';
 
@@ -210,6 +225,15 @@ export function ClaimBurn({
             <span className="wallet-info-address">
               {publicKey.slice(0, 4)}&hellip;{publicKey.slice(-4)}
             </span>
+            {onDisconnect && (
+              <button
+                className="btn-disconnect"
+                onClick={onDisconnect}
+                data-testid="disconnect-btn"
+              >
+                Disconnect
+              </button>
+            )}
           </div>
         )}
 
@@ -283,6 +307,7 @@ export function ClaimBurn({
     connecting: renderConnecting(),
     wrongNetwork: renderWrongNetwork(),
     connected: renderForm(),
+    error: renderError(),
   };
 
   return (
