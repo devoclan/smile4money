@@ -135,7 +135,7 @@ export function ClaimBurn({
 }: ClaimBurnProps) {
   const [mode, setMode] = useState<Mode>('claim');
   const [amount, setAmount] = useState('');
-  const [phase, setPhase] = useState<SubmitPhase>('idle');
+  const [status, setStatus] = useState<Status>('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const [txHash, setTxHash] = useState<string | null>(null);
 
@@ -164,7 +164,7 @@ export function ClaimBurn({
   const valid = isValidAmount(amount) && !exceedsBalance;
 
   function resetFeedback() {
-    setPhase('idle');
+    setStatus('idle');
     setTxHash(null);
     setErrorMsg('');
   }
@@ -187,17 +187,17 @@ export function ClaimBurn({
   }
 
   async function handleConfirm() {
-    setPhase('pending');
+    setStatus('pending');
     setErrorMsg('');
     setTxHash(null);
     try {
       const action = mode === 'claim' ? onClaim : onBurn;
       const hash = await action?.(amount);
       if (hash) setTxHash(hash);
-      setPhase('success');
+      setStatus('success');
       setAmount('');
     } catch (err) {
-      setPhase('error');
+      setStatus('error');
       setErrorMsg(err instanceof Error ? err.message : 'Transaction failed');
     }
   }
