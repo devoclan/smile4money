@@ -5,6 +5,8 @@ type Mode = 'claim' | 'burn';
 
 type WalletState = 'checking' | 'notInstalled' | 'disconnected' | 'connecting' | 'connected' | 'wrongNetwork';
 
+type SubmitStatus = 'idle' | 'pending' | 'success' | 'error';
+
 interface ClaimBurnProps {
   walletState: WalletState;
   onConnect?: () => void;
@@ -18,8 +20,6 @@ interface ClaimBurnProps {
 export function ClaimBurn({
   walletState,
   onConnect,
-  onDisconnect,
-  onRefreshBalance,
   onClaim,
   onBurn,
   onSwitchNetwork,
@@ -28,67 +28,35 @@ export function ClaimBurn({
 }: ClaimBurnProps) {
   const [mode, setMode] = useState<Mode>('claim');
   const [amount, setAmount] = useState('');
-  const [phase, setPhase] = useState<SubmitPhase>('idle');
+  const [status, setStatus] = useState<SubmitStatus>('idle');
   const [errorMsg, setErrorMsg] = useState('');
-  const [txHash, setTxHash] = useState<string | null>(null);
-  const [touched, setTouched] = useState(false);
 
-  const balanceNum = useMemo(
-    () => (walletState.balance !== null ? Number(walletState.balance) : null),
-    [walletState.balance],
-  );
-
-  const exceedsBalance = useMemo(
-    () =>
-      mode === 'burn' &&
-      balanceNum !== null &&
-      isValidAmount(amount) &&
-      Number(amount) > balanceNum,
-    [amount, balanceNum, mode],
-  );
-
-  const valid = isValidAmount(amount) && !exceedsBalance;
-
-  function resetFeedback() {
-    setPhase('idle');
-    setTxHash(null);
-    setErrorMsg('');
-  }
-
-  function handleMax() {
-    if (walletState.balance !== null) {
-      setAmount(stripTrailingZeros(walletState.balance));
-      setTouched(true);
-      resetFeedback();
-    }
-  }
-
-  function handleRequestSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!valid) return;
-    setPhase('confirm');
-  }
+    if (!amount || Number(amount) <= 0) return;
 
-  async function handleConfirm() {
-    setPhase('pending');
+    setStatus('pending');
     setErrorMsg('');
-    setTxHash(null);
+
     try {
-      let hash: string | void;
       if (mode === 'claim') {
-        hash = await onClaim?.(amount);
+        await onClaim?.(amount);
       } else {
-        hash = await onBurn?.(amount);
+        await onBurn?.(amount);
       }
-      if (hash) setTxHash(hash);
-      setPhase('success');
+      setStatus('success');
       setAmount('');
-      setTouched(false);
     } catch (err) {
-      setPhase('error');
+      setStatus('error');
       setErrorMsg(err instanceof Error ? err.message : 'Transaction failed');
     }
-  }
+  };
+
+  const handleModeChange = (newMode: Mode) => {
+    setMode(newMode);
+    setStatus('idle');
+    setErrorMsg('');
+  };
 
   function renderNotInstalled() {
     return (
@@ -155,7 +123,7 @@ export function ClaimBurn({
         <div className="toggle" role="group" aria-label="Select mode">
           <button
             className={`toggle-btn${mode === 'claim' ? ' active' : ''}`}
-            onClick={() => { setMode('claim'); setStatus('idle'); }}
+            onClick={() => handleModeChange('claim')}
             aria-pressed={mode === 'claim'}
             data-testid="toggle-claim"
           >
@@ -163,7 +131,7 @@ export function ClaimBurn({
           </button>
           <button
             className={`toggle-btn${mode === 'burn' ? ' active' : ''}`}
-            onClick={() => { setMode('burn'); setStatus('idle'); }}
+            onClick={() => handleModeChange('burn')}
             aria-pressed={mode === 'burn'}
             data-testid="toggle-burn"
           >
@@ -190,7 +158,11 @@ export function ClaimBurn({
             min="0"
             step="any"
             value={amount}
-            onChange={(e) => { setAmount(e.target.value); setStatus('idle'); }}
+            onChange={(e) => {
+              setAmount(e.target.value);
+              setStatus('idle');
+              setErrorMsg('');
+            }}
             placeholder="0.00"
             disabled={status === 'pending'}
             data-testid="amount-input"
