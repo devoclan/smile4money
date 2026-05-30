@@ -228,15 +228,16 @@ export function ClaimBurn({
             Claim
           </button>
           <button
-            type="button"
-            className={`toggle-btn${mode === 'burn' ? ' active' : ''}`}
-            onClick={() => handleModeChange('burn')}
-            aria-pressed={mode === 'burn'}
-            data-testid="toggle-burn"
+            className="btn btn-connect"
+            onClick={onConnect}
+            data-testid="retry-connect-btn"
           >
-            Burn
+            Try Again
           </button>
         </div>
+      </div>
+    );
+  }
 
         {/* Wallet info */}
         {connectedAddress && (
@@ -364,19 +365,23 @@ export function ClaimBurn({
             </p>
           )}
         </div>
-      </>
-    );
-  }
-
-  const stateMap: Record<string, React.ReactNode> = {
-    checking: renderConnecting(),
-    notInstalled: renderNotInstalled(),
-    disconnected: renderDisconnected(),
-    connecting: renderConnecting(),
-    wrongNetwork: renderWrongNetwork(),
-    connected: renderForm(),
-    error: renderError(),
-  };
+        {!showConfirm && (
+          <button
+            type="submit"
+            className={`btn btn-${mode}`}
+            disabled={isPending || !isValidAmount(amount)}
+            data-testid="submit-btn"
+          >
+            {isPending
+              ? mode === 'claim'
+                ? 'Claiming\u2026'
+                : 'Burning\u2026'
+              : mode === 'claim'
+              ? 'Claim'
+              : 'Burn'}
+          </button>
+        )}
+      </form>
 
   return (
     <div className={`claim-burn ${className}`.trim()} data-testid="claim-burn">
