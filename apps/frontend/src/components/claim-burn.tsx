@@ -2,8 +2,15 @@ import React, { useState } from 'react';
 import '../styles/claim-burn.css';
 
 type Mode = 'claim' | 'burn';
-
-type WalletState = 'checking' | 'notInstalled' | 'disconnected' | 'connecting' | 'connected' | 'wrongNetwork';
+type Phase = 'idle' | 'confirm' | 'pending' | 'success' | 'error';
+type WalletState =
+  | 'checking'
+  | 'notInstalled'
+  | 'disconnected'
+  | 'connecting'
+  | 'connected'
+  | 'wrongNetwork'
+  | { status: string; address?: string | null; error?: string | null; balance?: string | null; network?: string };
 
 interface ClaimBurnProps {
   walletState: WalletState;
@@ -15,11 +22,23 @@ interface ClaimBurnProps {
   expectedNetwork?: string;
 }
 
+function resolveState(walletState: WalletState): string {
+  if (typeof walletState === 'string') return walletState;
+  return walletState.status;
+}
+
+function hasConfirmStep(walletState: WalletState): boolean {
+  return typeof walletState === 'object';
+}
+
+function isValidAmount(value: string): boolean {
+  const n = Number(value);
+  return value.trim() !== '' && !isNaN(n) && n > 0;
+}
+
 export function ClaimBurn({
   walletState,
   onConnect,
-  onDisconnect,
-  onRefreshBalance,
   onClaim,
   onBurn,
   onSwitchNetwork,
@@ -28,72 +47,72 @@ export function ClaimBurn({
 }: ClaimBurnProps) {
   const [mode, setMode] = useState<Mode>('claim');
   const [amount, setAmount] = useState('');
-  const [phase, setPhase] = useState<SubmitPhase>('idle');
+  const [phase, setPhase] = useState<Phase>('idle');
   const [errorMsg, setErrorMsg] = useState('');
-  const [txHash, setTxHash] = useState<string | null>(null);
-  const [touched, setTouched] = useState(false);
 
-  const balanceNum = useMemo(
-    () => (walletState.balance !== null ? Number(walletState.balance) : null),
-    [walletState.balance],
-  );
+  const state = resolveState(walletState);
 
-  const exceedsBalance = useMemo(
-    () =>
-      mode === 'burn' &&
-      balanceNum !== null &&
-      isValidAmount(amount) &&
-      Number(amount) > balanceNum,
-    [amount, balanceNum, mode],
-  );
+  const confirmStep = hasConfirmStep(walletState);
 
-  const valid = isValidAmount(amount) && !exceedsBalance;
+  function handleAmountChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setAmount(e.target.value);
+    if (phase === 'error' || phase === 'success') setPhase('idle');
+  }
 
-  function resetFeedback() {
+  function handleModeChange(next: Mode) {
+    setMode(next);
     setPhase('idle');
-    setTxHash(null);
     setErrorMsg('');
   }
 
-  function handleMax() {
-    if (walletState.balance !== null) {
-      setAmount(stripTrailingZeros(walletState.balance));
-      setTouched(true);
-      resetFeedback();
-    }
-  }
-
-  function handleRequestSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!valid) return;
-    setPhase('confirm');
-  }
-
-  async function handleConfirm() {
+  async function execute(amt: string) {
     setPhase('pending');
     setErrorMsg('');
-    setTxHash(null);
     try {
-      let hash: string | void;
       if (mode === 'claim') {
-        hash = await onClaim?.(amount);
+        await onClaim?.(amt);
       } else {
-        hash = await onBurn?.(amount);
+        await onBurn?.(amt);
       }
-      if (hash) setTxHash(hash);
       setPhase('success');
       setAmount('');
-      setTouched(false);
     } catch (err) {
       setPhase('error');
       setErrorMsg(err instanceof Error ? err.message : 'Transaction failed');
     }
   }
 
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!isValidAmount(amount)) return;
+    if (confirmStep) {
+      setPhase('confirm');
+    } else {
+      execute(amount);
+    }
+  }
+
+  async function handleConfirm() {
+    await execute(amount);
+  }
+
+  function handleCancel() {
+    setPhase('idle');
+  }
+
+  function renderConnecting() {
+    return (
+      <div className="wallet-state" data-testid="wallet-connecting">
+        <div className="spinner" />
+        <p className="wallet-state-message">Connecting to Freighter&hellip;</p>
+      </div>
+    );
+  }
+
   function renderNotInstalled() {
     return (
       <div className="wallet-state" data-testid="wallet-not-installed">
-        <div className="wallet-state-icon">&#9888;&#65039;</div>
+        <div className="wallet-state-icon">⚠️</div>
         <h3 className="wallet-state-title">Freighter Not Found</h3>
         <p className="wallet-state-message">
           Please install the{' '}
@@ -109,7 +128,7 @@ export function ClaimBurn({
   function renderDisconnected() {
     return (
       <div className="wallet-state" data-testid="wallet-disconnected">
-        <div className="wallet-state-icon">&#128188;</div>
+        <div className="wallet-state-icon">💼</div>
         <h3 className="wallet-state-title">Connect Your Wallet</h3>
         <p className="wallet-state-message">
           Connect your Freighter wallet to claim rewards or burn tokens.
@@ -121,19 +140,10 @@ export function ClaimBurn({
     );
   }
 
-  function renderConnecting() {
-    return (
-      <div className="wallet-state" data-testid="wallet-connecting">
-        <div className="spinner" />
-        <p className="wallet-state-message">Connecting to Freighter&hellip;</p>
-      </div>
-    );
-  }
-
   function renderWrongNetwork() {
     return (
       <div className="wallet-state" data-testid="wallet-wrong-network">
-        <div className="wallet-state-icon">&#127760;</div>
+        <div className="wallet-state-icon">🌐</div>
         <h3 className="wallet-state-title">Wrong Network</h3>
         <p className="wallet-state-message">
           Please switch your Freighter wallet to <strong>{expectedNetwork}</strong>.
@@ -150,12 +160,14 @@ export function ClaimBurn({
   }
 
   function renderForm() {
+    const submitDisabled = phase === 'pending' || !isValidAmount(amount);
+
     return (
       <>
         <div className="toggle" role="group" aria-label="Select mode">
           <button
             className={`toggle-btn${mode === 'claim' ? ' active' : ''}`}
-            onClick={() => { setMode('claim'); setStatus('idle'); }}
+            onClick={() => handleModeChange('claim')}
             aria-pressed={mode === 'claim'}
             data-testid="toggle-claim"
           >
@@ -163,7 +175,7 @@ export function ClaimBurn({
           </button>
           <button
             className={`toggle-btn${mode === 'burn' ? ' active' : ''}`}
-            onClick={() => { setMode('burn'); setStatus('idle'); }}
+            onClick={() => handleModeChange('burn')}
             aria-pressed={mode === 'burn'}
             data-testid="toggle-burn"
           >
@@ -190,28 +202,46 @@ export function ClaimBurn({
             min="0"
             step="any"
             value={amount}
-            onChange={(e) => { setAmount(e.target.value); setStatus('idle'); }}
+            onChange={handleAmountChange}
             placeholder="0.00"
-            disabled={status === 'pending'}
+            disabled={phase === 'pending'}
             data-testid="amount-input"
           />
-          <button
-            type="submit"
-            className={`btn btn-${mode}`}
-            disabled={status === 'pending' || !amount || Number(amount) <= 0}
-            data-testid="submit-btn"
-          >
-            {status === 'pending' ? 'Processing\u2026' : mode === 'claim' ? 'Claim' : 'Burn'}
-          </button>
+          {phase !== 'confirm' && (
+            <button
+              type="submit"
+              className={`btn btn-${mode}`}
+              disabled={submitDisabled}
+              data-testid="submit-btn"
+            >
+              {phase === 'pending' ? 'Processing…' : mode === 'claim' ? 'Claim' : 'Burn'}
+            </button>
+          )}
         </form>
 
+        {phase === 'confirm' && (
+          <div className="confirm-overlay" data-testid="confirm-overlay">
+            <p className="confirm-message">
+              {mode === 'claim' ? 'Claim' : 'Burn'} <strong>{amount}</strong> XLM?
+            </p>
+            <div className="confirm-actions">
+              <button className="btn btn-confirm" onClick={handleConfirm} data-testid="confirm-btn">
+                Confirm
+              </button>
+              <button className="btn btn-cancel" onClick={handleCancel} data-testid="cancel-btn">
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         <div aria-live="polite" aria-atomic="true">
-          {status === 'success' && (
+          {phase === 'success' && (
             <p className="feedback success" role="status" data-testid="success-msg">
               {mode === 'claim' ? 'Claimed successfully!' : 'Burned successfully!'}
             </p>
           )}
-          {status === 'error' && (
+          {phase === 'error' && (
             <p className="feedback error" role="alert" data-testid="error-msg">
               {errorMsg}
             </p>
@@ -221,11 +251,11 @@ export function ClaimBurn({
     );
   }
 
-  const stateMap: Record<WalletState, React.ReactNode> = {
+  const stateMap: Record<string, React.ReactNode> = {
     checking: renderConnecting(),
+    connecting: renderConnecting(),
     notInstalled: renderNotInstalled(),
     disconnected: renderDisconnected(),
-    connecting: renderConnecting(),
     wrongNetwork: renderWrongNetwork(),
     connected: renderForm(),
   };
@@ -233,7 +263,7 @@ export function ClaimBurn({
   return (
     <div className="claim-burn" data-testid="claim-burn">
       <h2 className="claim-burn-title">Claim &amp; Burn</h2>
-      {stateMap[walletState]}
+      {stateMap[state] ?? renderForm()}
     </div>
   );
 }
