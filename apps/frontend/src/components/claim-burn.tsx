@@ -9,13 +9,12 @@ type WalletStateProp =
   | { status: string; balance?: string | null; address?: string | null };
 
 interface ClaimBurnProps {
-  walletState: WalletStateProp;
+  walletState: { status: string; balance?: string | null };
   onConnect?: () => void;
   onDisconnect?: () => void;
   onRefreshBalance?: () => void;
   onClaim?: (amount: string) => Promise<string | void>;
   onBurn?: (amount: string) => Promise<string | void>;
-  onSwitchNetwork?: () => void;
   publicKey?: string | null;
   balance?: string | null;
   expectedNetwork?: string;
