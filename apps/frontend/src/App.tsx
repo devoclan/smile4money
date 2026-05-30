@@ -2,23 +2,8 @@ import { ClaimBurn } from './components/claim-burn';
 import { useStellarWallet } from './hooks/useStellarWallet';
 
 export function App() {
-  const {
-    status,
-    address,
-    balance,
-    network,
-    connect,
-    disconnect,
-    refreshBalance,
-  } = useStellarWallet();
-
-  async function handleClaim(amount: string): Promise<string | void> {
-    return Promise.resolve();
-  }
-
-  async function handleBurn(amount: string): Promise<string | void> {
-    return Promise.resolve();
-  }
+  const { status, address, balance, connect, disconnect, refreshBalance } =
+    useStellarWallet();
 
   const handleClaim = async (amount: string) => {
     console.info('Claim request', amount);
