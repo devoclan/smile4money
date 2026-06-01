@@ -261,68 +261,26 @@
   background: #e5e5e5;
 }
 
-/* Confirmation overlay */
+/* Confirmation overlay — inline within the form flow, not a fixed modal */
 .confirm-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  animation: fadeIn 0.2s ease;
+  text-align: center;
+  padding: 1.5rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fafafa;
+  margin-bottom: 0.75rem;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.confirm-content {
-  background: #fff;
-  border-radius: 12px;
-  padding: 2rem;
-  max-width: 400px;
-  width: 90%;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-  animation: slideUp 0.3s ease;
-}
-
-@keyframes slideUp {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.confirm-content h3 {
-  font-size: 1.25rem;
-  margin: 0 0 1rem;
-  color: #1a1a2e;
-}
-
-.confirm-content p {
-  font-size: 0.95rem;
-  color: #666;
-  margin: 0 0 1.5rem;
-  line-height: 1.6;
-}
-
-.confirm-content strong {
-  color: #1a1a2e;
+.confirm-text {
+  font-size: 1rem;
   font-weight: 600;
+  color: #1a1a2e;
+  margin: 0 0 1.25rem;
 }
 
 .confirm-buttons {
   display: flex;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .confirm-buttons .btn {
@@ -392,10 +350,6 @@
 
   .claim-burn-title {
     font-size: 1.25rem;
-  }
-
-  .confirm-content {
-    width: 95%;
   }
 
   .toggle-btn {
@@ -625,33 +579,6 @@ input:disabled {
   to {
     transform: rotate(360deg);
   }
-}
-
-/* Confirmation overlay */
-.confirm-overlay {
-  text-align: center;
-  padding: 1.5rem 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  background: #fafafa;
-  margin-bottom: 0.75rem;
-}
-
-.confirm-text {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #1a1a2e;
-  margin: 0 0 1.25rem;
-}
-
-.btn-confirm {
-  background: #10b981;
-  color: #fff;
-  margin-bottom: 0.5rem;
-}
-
-.btn-confirm:hover:not(:disabled) {
-  background: #059669;
 }
 
 .btn-cancel {
