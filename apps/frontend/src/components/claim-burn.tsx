@@ -47,6 +47,20 @@ function useCopyToClipboard(timeoutMs = 2000) {
   return { copiedKey, copy };
 }
 
+function resolveState(walletState: WalletState): string {
+  if (typeof walletState === 'string') return walletState;
+  return walletState.status;
+}
+
+function hasConfirmStep(walletState: WalletState): boolean {
+  return typeof walletState === 'object';
+}
+
+function isValidAmount(value: string): boolean {
+  const n = Number(value);
+  return value.trim() !== '' && !isNaN(n) && n > 0;
+}
+
 export function ClaimBurn({
   walletState,
   onConnect,
@@ -109,7 +123,6 @@ export function ClaimBurn({
   async function handleConfirm() {
     setStatus('pending');
     setErrorMsg('');
-    setTxHash(null);
     try {
       const action = mode === 'claim' ? onClaim : onBurn;
       const hash = await action?.(amount);
