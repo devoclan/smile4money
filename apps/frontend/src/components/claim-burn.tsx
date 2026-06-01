@@ -56,13 +56,27 @@ function hasConfirmStep(walletState: WalletState): boolean {
   return typeof walletState === 'object';
 }
 
-function isValidAmount(value: string): boolean {
-  const n = Number(value);
-  return value.trim() !== '' && !isNaN(n) && n > 0;
+function StatusBadge({ walletState }: { walletState: WalletState }) {
+  const config: Record<WalletState, { label: string; color: string; dot: string }> = {
+    disconnected: { label: "Wallet Disconnected", color: "text-white/40",    dot: "bg-white/20" },
+    connecting:   { label: "Connecting…",          color: "text-amber-400",   dot: "bg-amber-400 animate-pulse" },
+    connected:    { label: "Wallet Connected",      color: "text-emerald-400", dot: "bg-emerald-400" },
+    processing:   { label: "Processing…",           color: "text-sky-400",    dot: "bg-sky-400 animate-pulse" },
+  };
+  const { label, color, dot } = config[walletState];
+  return (
+    <div className={`flex items-center gap-2 text-xs font-medium ${color}`} aria-live="polite">
+      <span className={`w-2 h-2 rounded-full ${dot}`} aria-hidden="true" />
+      {label}
+    </div>
+  );
 }
 
-export function ClaimBurn({
-  walletState,
+export default function ClaimBurn({
+  walletState: externalWalletState,
+  claimableAmount = "1,250.00",
+  burnableAmount  = "450.00",
+  tokenSymbol     = "S4M",
   onConnect,
   onClaim,
   onBurn,
@@ -116,19 +130,20 @@ export function ClaimBurn({
     setTimeout(() => amountInputRef.current?.focus(), 0);
   }
 
-  function handleAmountChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setAmount(e.target.value);
-    if (status === 'error' || status === 'success') {
-      resetFeedback();
-    }
-  }
+  const effectiveState = externalWalletState ?? walletState;
 
-  function handleMax() {
-    if (balance != null) {
-      setAmount(balance);
-      resetFeedback();
+  const handleConnect = useCallback(async () => {
+    setError(null);
+    setWalletState("connecting");
+    try {
+      if (onConnect) await onConnect();
+      else await new Promise((r) => setTimeout(r, 1200));
+      setWalletState("connected");
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to connect wallet");
+      setWalletState("disconnected");
     }
-  }
+  }, [onConnect]);
 
   function handleRequestSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -187,8 +202,6 @@ export function ClaimBurn({
           to continue.
         </p>
       </div>
-    );
-  }
 
   if (walletState === 'disconnected') {
     return (
@@ -236,38 +249,59 @@ export function ClaimBurn({
           Try Again
         </button>
       </div>
-    );
-  }
 
-  // ── Connected UI ──────────────────────────────────────────────────
-
-  const isPending = status === 'pending';
-  const showConfirm = status === 'confirm';
-  const valid = isValidAmount(amount);
+      {error && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="rounded-xl bg-rose-500/10 border border-rose-500/30 px-4 py-3 text-sm text-rose-400"
+        >
+          ⚠ {error}
+        </div>
+      )}
 
   return (
     <div className={`claim-burn ${themeClass}`} data-testid="claim-burn" data-theme={resolvedTheme}>
       <h2 className="claim-burn-title">Claim &amp; Burn</h2>
 
-      {/* Toggle */}
-      <div className="toggle" role="group" aria-label="Select mode">
+      {isDisconnected ? (
         <button
           type="button"
-          className={`toggle-btn${mode === 'claim' ? ' active' : ''}`}
-          onClick={() => handleToggle('claim')}
-          aria-pressed={mode === 'claim'}
-          data-testid="toggle-claim"
+          onClick={handleConnect}
+          disabled={effectiveState === "connecting"}
+          aria-label="Connect wallet to continue"
+          className={[
+            "w-full rounded-xl py-3.5 text-sm font-bold text-white transition-all duration-200",
+            "bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-600/30",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400",
+            effectiveState === "connecting" ? "opacity-70 cursor-not-allowed" : "",
+          ].join(" ")}
         >
-          Claim
+          <span className="flex items-center justify-center gap-2">
+            {effectiveState === "connecting" && <Spinner />}
+            {effectiveState === "connecting" ? "Connecting Wallet…" : "Connect Wallet"}
+          </span>
         </button>
+      ) : (
         <button
           type="button"
-          className={`toggle-btn${mode === 'burn' ? ' active' : ''}`}
-          onClick={() => handleToggle('burn')}
-          aria-pressed={mode === 'burn'}
-          data-testid="toggle-burn"
+          onClick={handleAction}
+          disabled={isProcessing}
+          aria-label={isClaim ? "Claim available rewards" : "Burn tokens"}
+          aria-busy={isProcessing}
+          className={[
+            "w-full rounded-xl py-3.5 text-sm font-bold text-white transition-all duration-200 shadow-lg",
+            actionColor,
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60",
+            isProcessing ? "opacity-70 cursor-not-allowed" : "",
+          ].join(" ")}
         >
-          Burn
+          <span className="flex items-center justify-center gap-2">
+            {isProcessing && <Spinner />}
+            {isProcessing
+              ? isClaim ? "Claiming…" : "Burning…"
+              : isClaim ? "Claim Rewards" : "Burn Tokens"}
+          </span>
         </button>
       </div>
 
@@ -449,3 +483,5 @@ export function ClaimBurn({
     </div>
   );
 }
+
+export { ClaimBurn };
