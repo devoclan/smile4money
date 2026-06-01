@@ -156,11 +156,11 @@ export default function ClaimBurn({
     }
   }, [onConnect]);
 
-  function handleRequestSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!isValidAmount(amount)) return;
-    setStatus('confirm');
-  }
+  const handleConnect = useCallback(async () => {
+    setError(null); setWState("connecting");
+    try { if (onConnect) await onConnect(); else await new Promise(r => setTimeout(r, 1200)); setWState("connected"); }
+    catch (e: any) { setError(e?.message ?? "Failed to connect"); setWState("disconnected"); }
+  }, [onConnect]);
 
   async function handleConfirm() {
     setStatus('pending');
