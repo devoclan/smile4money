@@ -84,8 +84,22 @@ export function ClaimBurn({
 
   useEffect(() => {
     if (status === 'success') {
-      const timer = setTimeout(() => setStatus('idle'), 3000);
+      const msg = mode === 'claim' ? 'XLM claimed successfully!' : 'XLM burned successfully!';
+      setAnnouncement(msg);
+      const timer = setTimeout(() => {
+        setStatus('idle');
+        setAnnouncement('');
+      }, 3000);
       return () => clearTimeout(timer);
+    }
+    if (status === 'error') {
+      setAnnouncement(errorMsg || 'Transaction failed');
+    }
+  }, [status, mode, errorMsg]);
+
+  useEffect(() => {
+    if (status === 'confirm') {
+      confirmBtnRef.current?.focus();
     }
   }, [status]);
 
@@ -93,11 +107,13 @@ export function ClaimBurn({
     setStatus('idle');
     setTxHash(null);
     setErrorMsg('');
+    setAnnouncement('');
   }
 
   function handleToggle(newMode: Mode) {
     setMode(newMode);
     resetFeedback();
+    setTimeout(() => amountInputRef.current?.focus(), 0);
   }
 
   function handleAmountChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -142,6 +158,7 @@ export function ClaimBurn({
 
   function handleCancel() {
     setStatus('idle');
+    setTimeout(() => amountInputRef.current?.focus(), 0);
   }
 
   const themeClass = `theme-${resolvedTheme}`;
@@ -278,7 +295,7 @@ export function ClaimBurn({
           {balance != null && (
             <div className="wallet-balance-row">
               <span className="wallet-balance-label">Balance</span>
-              <span className="wallet-balance-value" data-testid="wallet-balance">
+              <span className="wallet-balance-value" data-testid="wallet-balance" aria-label={`${balance} XLM`}>
                 {balance} XLM
               </span>
               {onRefreshBalance && (
@@ -286,7 +303,7 @@ export function ClaimBurn({
                   className="btn-refresh-balance"
                   onClick={onRefreshBalance}
                   data-testid="refresh-balance-btn"
-                  title="Refresh balance"
+                  aria-label="Refresh balance"
                 >
                   ↻
                 </button>
@@ -298,7 +315,13 @@ export function ClaimBurn({
 
       {/* Confirmation overlay */}
       {showConfirm && (
-        <div className="confirm-overlay" data-testid="confirm-overlay">
+        <div
+          className="confirm-overlay"
+          data-testid="confirm-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Confirm ${mode}`}
+        >
           <p className="confirm-text">
             {mode === 'claim' ? 'Claim' : 'Burn'} <strong>{amount}</strong> XLM?
           </p>
@@ -312,6 +335,7 @@ export function ClaimBurn({
               Cancel
             </button>
             <button
+              ref={confirmBtnRef}
               type="button"
               className={`btn btn-${mode}`}
               onClick={handleConfirm}
@@ -324,11 +348,12 @@ export function ClaimBurn({
       )}
 
       {/* Form */}
-      <form onSubmit={handleRequestSubmit} data-testid="claim-burn-form">
+      <form onSubmit={handleRequestSubmit} data-testid="claim-burn-form" aria-label={`${mode === 'claim' ? 'Claim' : 'Burn'} tokens`}>
         <div className="form-group">
           <label htmlFor="amount-input">Amount (XLM)</label>
           <div className="input-row">
             <input
+              ref={amountInputRef}
               id="amount-input"
               type="number"
               min="0"
@@ -338,6 +363,8 @@ export function ClaimBurn({
               disabled={isPending}
               placeholder="0.00"
               data-testid="amount-input"
+              aria-describedby={balance != null ? 'wallet-balance' : undefined}
+              aria-invalid={amount !== '' && !valid}
             />
             {mode === 'burn' && balance != null && (
               <button
@@ -346,6 +373,7 @@ export function ClaimBurn({
                 onClick={handleMax}
                 disabled={isPending}
                 data-testid="max-btn"
+                aria-label="Use maximum balance"
               >
                 Max
               </button>
@@ -359,6 +387,7 @@ export function ClaimBurn({
             className={`btn btn-${mode}`}
             disabled={isPending || !valid}
             data-testid="submit-btn"
+            aria-busy={isPending}
           >
             {isPending
               ? mode === 'claim' ? 'Claiming…' : 'Burning…'
